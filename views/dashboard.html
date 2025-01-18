@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - S20 Project</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .nav {
+            background-color: #333;
+            padding: 1rem;
+            color: white;
+        }
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1.5rem;
+        }
+        .nav a:hover {
+            color: #ddd;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .welcome-banner {
+            background-color: #007bff;
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        .admin-badge {
+            background-color: #28a745;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            margin-left: 1rem;
+            display: none;
+        }
+        .event-list {
+            list-style: none;
+            padding: 0;
+        }
+        .event-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .event-item:last-child {
+            border-bottom: none;
+        }
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-content">
+            <div>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/events">Events</a>
+                <a href="/leaderboard">Leaderboard</a>
+                <a href="/admin" id="admin-link" style="display: none;">Admin</a>
+            </div>
+            <form action="/logout" method="POST" style="display: inline;">
+                <button type="submit" style="background: none; border: none; color: white; cursor: pointer;">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="welcome-banner">
+            <h1>Welcome <span id="username"></span><span id="admin-badge" class="admin-badge">Admin</span></h1>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Upcoming Events</h2>
+                <ul id="upcoming-events" class="event-list">
+                    <li>Loading events...</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>Top Performers</h2>
+                <div id="top-performers">
+                    <div class="leaderboard-item">Loading leaderboard...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch user data and update the dashboard
+        fetch('/api/user')
+            .then(response => response.json())
+            .then(user => {
+                document.getElementById('username').textContent = user.name;
+                if (user.isAdmin) {
+                    document.getElementById('admin-badge').style.display = 'inline';
+                    document.getElementById('admin-link').style.display = 'inline';
+                }
+            })
+            .catch(() => {
+                window.location.href = '/login';
+            });
+
+        // Fetch upcoming events
+        fetch('/api/events')
+            .then(response => response.json())
+            .then(events => {
+                const upcomingEvents = events
+                    .filter(event => new Date(event.dateTime) > new Date())
+                    .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime))
+                    .slice(0, 5);
+
+                document.getElementById('upcoming-events').innerHTML = upcomingEvents
+                    .map(event => `
+                        <li class="event-item">
+                            <strong>${event.title}</strong><br>
+                            ${event.activityType}<br>
+                            ${new Date(event.dateTime).toLocaleString()}<br>
+                            Participants: ${event.joinedUsers.length}/${event.maxParticipants}
+                        </li>
+                    `)
+                    .join('') || '<li class="event-item">No upcoming events</li>';
+            });
+
+        // Fetch leaderboard
+        fetch('/api/leaderboard')
+            .then(response => response.json())
+            .then(leaderboard => {
+                const top3 = leaderboard.slice(0, 3);
+                document.getElementById('top-performers').innerHTML = top3
+                    .map((user, index) => `
+                        <div class="leaderboard-item">
+                            <span>#${index + 1} ${user.loginId}</span>
+                            <span>${user.total} points</span>
+                        </div>
+                    `)
+                    .join('') || '<div class="leaderboard-item">No data available</div>';
+            });
+    </script>
+</body>
+</html>

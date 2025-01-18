@@ -1,0 +1,19 @@
+{
+  "discussions": [
+    {
+      "id": "news-001",
+      "title": "Tech Industry Layoffs 2025",
+      "content": "Discussion about the recent tech industry trends and job market.",
+      "postedBy": "31415926",
+      "postedAt": "2025-01-20T10:00:00",
+      "comments": [
+        {
+          "id": "comment-001",
+          "content": "This is concerning for new graduates.",
+          "postedBy": "alice123",
+          "postedAt": "2025-01-20T10:30:00"
+        }
+      ]
+    }
+  ]
+}

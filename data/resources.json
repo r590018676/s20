@@ -1,0 +1,13 @@
+{
+  "resources": [
+    {
+      "resourceId": "res-001",
+      "title": "Profitability Framework",
+      "description": "A comprehensive guide to analyzing business profitability",
+      "category": "Consulting",
+      "url": "https://example.com/frameworks/profitability.pdf",
+      "addedBy": "31415926",
+      "addedAt": "2025-01-20T08:00:00"
+    }
+  ]
+}

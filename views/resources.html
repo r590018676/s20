@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resources - S20 Project</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .nav {
+            background-color: #333;
+            padding: 1rem;
+            color: white;
+        }
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1.5rem;
+        }
+        .nav a:hover {
+            color: #ddd;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .resources-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .resource-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .resource-meta {
+            color: #666;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+        .category-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-content">
+            <div>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/events">Events</a>
+                <a href="/news-discussion">News Discussion</a>
+                <a href="/resources">Resources</a>
+                <a href="/community">Community</a>
+                <a href="/leaderboard">Leaderboard</a>
+                <a href="/profile">Profile</a>
+                <a href="/admin" id="admin-link" style="display: none;">Admin</a>
+            </div>
+            <form action="/logout" method="POST" style="display: inline;">
+                <button type="submit" style="background: none; border: none; color: white; cursor: pointer;">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="admin-section" class="card" style="display: none;">
+            <h2>Add New Resource</h2>
+            <form id="resource-form">
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category" required>
+                        <option value="Consulting">Consulting</option>
+                        <option value="Interview">Interview</option>
+                        <option value="Case Study">Case Study</option>
+                        <option value="General">General</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="url">Resource URL</label>
+                    <input type="url" id="url" name="url" required>
+                </div>
+                <button type="submit" class="btn-primary">Add Resource</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Available Resources</h2>
+            <div id="resources-grid" class="resources-grid">
+                Loading resources...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isAdmin = false;
+
+         Continuing directly from the previous script in views/resources.html:
+
+        // Fetch user data and check admin status
+        fetch('/api/user')
+            .then(response => response.json())
+            .then(user => {
+                isAdmin = user.isAdmin;
+                if (isAdmin) {
+                    document.getElementById('admin-link').style.display = 'inline';
+                    document.getElementById('admin-section').style.display = 'block';
+                }
+            })
+            .catch(() => {
+                window.location.href = '/login';
+            });
+
+        // Handle resource form submission
+        document.getElementById('resource-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const resourceData = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/api/resources', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(resourceData)
+                });
+
+                if (response.ok) {
+                    loadResources();
+                    e.target.reset();
+                }
+            } catch (error) {
+                console.error('Error creating resource:', error);
+            }
+        });
+
+        // Load and display resources
+        async function loadResources() {
+            try {
+                const response = await fetch('/api/resources');
+                const resources = await response.json();
+
+                document.getElementById('resources-grid').innerHTML = resources
+                    .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt))
+                    .map(resource => `
+                        <div class="resource-card">
+                            <h3>${resource.title}</h3>
+                            <p>${resource.description}</p>
+                            <div class="category-badge">${resource.category}</div>
+                            <div class="resource-meta">
+                                Added by ${resource.addedBy} on ${new Date(resource.addedAt).toLocaleString()}
+                            </div>
+                            <a href="${resource.url}" target="_blank" class="btn-primary" style="display: inline-block; margin-top: 1rem;">
+                                View Resource
+                            </a>
+                        </div>
+                    `)
+                    .join('') || '<p>No resources available</p>';
+            } catch (error) {
+                console.error('Error loading resources:', error);
+            }
+        }
+
+        // Initial load
+        loadResources();
+    </script>
+</body>
+</html>
+
+<boltAction type="file" filePath="views/community.html"><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community - S20 Project</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .nav {
+            background-color: #333;
+            padding: 1rem;
+            color: white;
+        }
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1.5rem;
+        }
+        .nav a:hover {
+            color: #ddd;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .groups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .group-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .group-meta {
+            color: #666;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+        .messages {
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .message {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        .message:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-content">
+            <div>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/events">Events</a>
+                <a href="/news-discussion">News Discussion</a>
+                <a href="/resources">Resources</a>
+                <a href="/community">Community</a>
+                <a href="/leaderboard">Leaderboard</a>
+                <a href="/profile">Profile</a>
+                <a href="/admin" id="admin-link" style="display: none;">Admin</a>
+            </div>
+            <form action="/logout" method="POST" style="display: inline;">
+                <button type="submit" style="background: none; border: none; color: white; cursor: pointer;">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2>Create New Group</h2>
+            <form id="group-form">
+                <div class="form-group">
+                    <label for="name">Group Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" required></textarea>
+                </div>
+                <button type="submit" class="btn-primary">Create Group</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Community Groups</h2>
+            <div id="groups-grid" class="groups-grid">
+                Loading groups...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        // Fetch user data
+        fetch('/api/user')
+            .then(response => response.json())
+            .then(user => {
+                currentUser = user;
+                if (user.isAdmin) {
+                    document.getElementById('admin-link').style.display = 'inline';
+                }
+            })
+            .catch(() => {
+                window.location.href = '/login';
+            });
+
+        // Handle group form submission
+        document.getElementById('group-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const groupData = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/api/groups', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(groupData)
+                });
+
+                if (response.ok) {
+                    loadGroups();
+                    e.target.reset();
+                }
+            } catch (error) {
+                console.error('Error creating group:', error);
+            }
+        });
+
+        // Join group
+        async function joinGroup(groupId) {
+            try {
+                const response = await fetch(`/api/groups/${groupId}/join`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    loadGroups();
+                }
+            } catch (error) {
+                console.error('Error joining group:', error);
+            }
+        }
+
+        // Send message
+        async function sendMessage(event, groupId) {
+            event.preventDefault();
+            const input = event.target.querySelector('input');
+            const content = input.value;
+
+            try {
+                const response = await fetch(`/api/groups/${groupId}/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ content })
+                });
+
+                if (response.ok) {
+                    loadGroups();
+                    input.value = '';
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+            }
+        }
+
+        // Load and display groups
+        async function loadGroups() {
+            try {
+                const response = await fetch('/api/groups');
+                const groups = await response.json();
+
+                document.getElementById('groups-grid').innerHTML = groups
+                    .map(group => `
+                        <div class="group-card">
+                            <h3>${group.name}</h3>
+                            <p>${group.description}</p>
+                            <div class="group-meta">
+                                Created by ${group.createdBy} on ${new Date(group.createdAt).toLocaleString()}<br>
+                                Members: ${group.members.length}
+                            </div>
+                            ${
+                                group.members.includes(currentUser.loginId)
+                                ? `
+                                    <div class="messages">
+                                        ${group.messages.map(message => `
+                                            <div class="message">
+                                                <strong>${message.postedBy}</strong>
+                                                <span class="group-meta">${new Date(message.postedAt).toLocaleString()}</span>
+                                                <p>${message.content}</p>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    <form onsubmit="sendMessage(event, '${group.groupId}')" class="form-group" style="margin-top: 1rem;">
+                                        <input type="text" placeholder="Type a message..." required>
+                                        <button type="submit" class="btn-primary">Send</button>
+                                    </form>
+                                `
+                                : `<button onclick="joinGroup('${group.groupId}')" class="btn-success" style="margin-top: 1rem;">Join Group</button>`
+                            }
+                        </div>
+                    `)
+                    .join('') || '<p>No groups available</p>';
+            } catch (error) {
+                console.error('Error loading groups:', error);
+            }
+        }
+
+        // Initial load
+        loadGroups();
+    </script>
+</body>
+</html>
+
+<boltAction type="file" filePath="views/profile.html"><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - S20 Project</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .nav {
+            background-color: #333;
+            padding: 1rem;
+            color: white;
+        }
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1.5rem;
+        }
+        .nav a:hover {
+            color: #ddd;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .profile-info {
+            flex-grow: 1;
+        }
+        .points-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .points-card {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .points-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .points-label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        .activity-list {
+            margin-top: 1rem;
+        }
+        .activity-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            margin-left: 0.5rem;
+        }
+        .badge-admin {
+            background-color: #28a745;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-content">
+            <div>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/events">Events</a>
+                <a href="/news-discussion">News Discussion</a>
+                <a href="/resources">Resources</a>
+                <a href="/community">Community</a>
+                <a href="/leaderboard">Leaderboard</a>
+                <a href="/profile">Profile</a>
+                <a href="/admin" id="admin-link" style="display: none;">Admin</a>
+            </div>
+            <form action="/logout" method="POST" style="display: inline;">
+                <button type="submit" style="background: none; border: none; color: white; cursor: pointer;">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <div class="profile-header">
+                <div class="profile-info">
+                    <h1>
+                        <span id="user-name">Loading...</span>
+                        <span id="admin-badge" class="badge badge-admin" style="display: none;">Admin</span>
+                    </h1>
+                    <p id="user-id"></p>
+                </div>
+            </div>
+
+            <h2>Activity Points</h2>
+            <div class="points-grid">
+                <div class="points-card">
+                    <div class="points-value" id="mock-interview-points">0</div>
+                    <div class="points-label">Mock Interview</div>
+                </div>
+                <div class="points-card">
+                    <div class="points-value" id="case-discussion-points">0</div>
+                    <div class="points-label">Case Discussion</div>
+                </div>
+                <div class="points-card">
+                    <div class="points-value" id="news-discussion-points">0</div>
+                    <div class="points-label">News Discussion</div>
+                </div>
+                <div class="points-card">
+                    <div class="points-value" id="debate-points">0</div>
+                    <div class="points-label">Debate</div>
+                </div>
+                <div class="points-card">
+                    <div class="points-value" id="total-points">0</div>
+                    <div class="points-label">Total Points</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>My Events</h2>
+            <div id="events-list" class="activity-list">
+                Loading events...
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>My Groups</h2>
+            <div id="groups-list" class="activity-list">
+                Loading groups...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch user data and profile
+        Promise.all([
+            fetch('/api/user'),
+            fetch('/api/profile')
+        ])
+            .then(([userResponse, profileResponse]) => 
+                Promise.all([userResponse.json(), profileResponse.json()])
+            )
+            .then(([user, profile]) => {
+                // Update user info
+                document.getElementById('user-name').textContent = user.name;
+                document.getElementById('user-id').textContent = `Login ID: ${user.loginId}`;
+                
+                if (user.isAdmin) {
+                    document.getElementById('admin-link').style.display = 'inline';
+                    document.getElementById('admin-badge').style.display = 'inline';
+                }
+
+                // Update points
+                document.getElementById('mock-interview-points').textContent = profile.points.mockInterview;
+                document.getElementById('case-discussion-points').textContent = profile.points.caseDiscussion;
+                document.getElementById('news-discussion-points').textContent = profile.points.newsDiscussion;
+                document.getElementById('debate-points').textContent = profile.points.debatePresentation;
+                document.getElementById('total-points').textContent = profile.points.total;
+
+                // Update events
+                document.getElementById('events-list').innerHTML = profile.events
+                    .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime))
+                    .map(event => `
+                        <div class="activity-item">
+                            <h3>${event.title}</h3>
+                            <p>
+                                ${event.activityType}<br>
+                                ${new Date(event.dateTime).toLocaleString()}<br>
+                                Participants: ${event.joinedUsers.length}/${event.maxParticipants}
+                            </p>
+                        </div>
+                    `)
+                    .join('') || '<p>No events joined or created</p>';
+
+                // Update groups
+                document.getElementById('groups-list').innerHTML = profile.groups
+                    .map(group => `
+                        <div class="activity-item">
+                            <h3>${group.name}</h3>
+                            <p>${group.description}</p>
+                            <p>Members: ${group.members.length}</p>
+                        </div>
+                    `)
+                    .join('') || '<p>No groups joined</p>';
+            })
+            .catch(() => {
+                window.location.href = '/login';
+            });
+    </script>
+</body>
+</html>

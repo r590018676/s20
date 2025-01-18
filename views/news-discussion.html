@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Discussion - S20 Project</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .nav {
+            background-color: #333;
+            padding: 1rem;
+            color: white;
+        }
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1.5rem;
+        }
+        .nav a:hover {
+            color: #ddd;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .discussion-item {
+            border-bottom: 1px solid #eee;
+            padding: 1rem 0;
+        }
+        .discussion-item:last-child {
+            border-bottom: none;
+        }
+        .discussion-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .discussion-meta {
+            color: #666;
+            font-size: 0.875rem;
+        }
+        .comments {
+            margin-top: 1rem;
+            padding-left: 1.5rem;
+        }
+        .comment {
+            background-color: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-content">
+            <div>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/events">Events</a>
+                <a href="/news-discussion">News Discussion</a>
+                <a href="/resources">Resources</a>
+                <a href="/community">Community</a>
+                <a href="/leaderboard">Leaderboard</a>
+                <a href="/profile">Profile</a>
+                <a href="/admin" id="admin-link" style="display: none;">Admin</a>
+            </div>
+            <form action="/logout" method="POST" style="display: inline;">
+                <button type="submit" style="background: none; border: none; color: white; cursor: pointer;">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2>Start a Discussion</h2>
+            <form id="discussion-form">
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="content">Content</label>
+                    <textarea id="content" name="content" required></textarea>
+                </div>
+                <button type="submit" class="btn-primary">Post Discussion</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Recent Discussions</h2>
+            <div id="discussions-list">
+                Loading discussions...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch user data
+        fetch('/api/user')
+            .then(response => response.json())
+            .then(user => {
+                if (user.isAdmin) {
+                    document.getElementById('admin-link').style.display = 'inline';
+                }
+            })
+            .catch(() => {
+                window.location.href = '/login';
+            });
+
+        // Handle discussion form submission
+        document.getElementById('discussion-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const discussionData = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/api/news', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(discussionData)
+                });
+
+                if (response.ok) {
+                    loadDiscussions();
+                    e.target.reset();
+                }
+            } catch (error) {
+                console.error('Error creating discussion:', error);
+            }
+        });
+
+        // Load and display discussions
+        async function loadDiscussions() {
+            try {
+                const response = await fetch('/api/news');
+                const discussions = await response.json();
+
+                document.getElementById('discussions-list').innerHTML = discussions
+                    .sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt))
+                    .map(discussion => `
+                        <div class="discussion-item">
+                            <div class="discussion-header">
+                                <h3>${discussion.title}</h3>
+                                <span class="discussion-meta">
+                                    Posted by ${discussion.postedBy} on ${new Date(discussion.postedAt).toLocaleString()}
+                                </span>
+                            </div>
+                            <p>${discussion.content}</p>
+                            <div class="comments">
+                                ${discussion.comments.map(comment => `
+                                    <div class="comment">
+                                        <div class="discussion-meta">
+                                            ${comment.postedBy} - ${new Date(comment.postedAt).toLocaleString()}
+                                        </div>
+                                        <p>${comment.content}</p>
+                                    </div>
+                                `).join('')}
+                                <form onsubmit="addComment(event, '${discussion.id}')" class="form-group">
+                                    <input type="text" placeholder="Add a comment..." required>
+                                    <button type="submit" class="btn-primary">Comment</button>
+                                </form>
+                            </div>
+                        </div>
+                    `)
+                    .join('') || '<p>No discussions yet</p>';
+            } catch (error) {
+                console.error('Error loading discussions:', error);
+            }
+        }
+
+        // Add comment to discussion
+        async function addComment(event, discussionId) {
+            event.preventDefault();
+            const input = event.target.querySelector('input');
+            const content = input.value;
+
+            try {
+                const response = await fetch(`/api/news/${discussionId}/comment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ content })
+                });
+
+                if (response.ok) {
+                    loadDiscussions();
+                    input.value = '';
+                }
+            } catch (error) {
+                console.error('Error adding comment:', error);
+            }
+        }
+
+        // Initial load
+        loadDiscussions();
+    </script>
+</body>
+</html>
